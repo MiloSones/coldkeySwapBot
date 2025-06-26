@@ -107,11 +107,11 @@ async def poll_pending_extrinsics():
                 try:
                     cm = xt.value['call']['call_module']
                     fn = xt.value['call']['call_function']
-                    if cm == "SubtensorModule" and fn == "scheduleSwapColdkey":
+                    if cm == "SubtensorModule" and fn == "schedule_swap_coldkey":
                         caller = xt.value['address']
                         new_coldkey = None
                         for arg in xt.value['call']['call_args']:
-                            if arg['name'] == 'newColdkey':
+                            if arg['name'] == 'new_coldkey':
                                 new_coldkey = arg['value']
 
                         message = f"🔁 Coldkey swap scheduled:\n👤 Caller: {caller}\n🆕 New Coldkey: {new_coldkey}"
