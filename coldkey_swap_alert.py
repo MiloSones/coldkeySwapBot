@@ -21,9 +21,14 @@ BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 WS_URL = os.getenv("WS_URL")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL"))
 MNEMONIC = os.getenv("MNEMONIC")
-VALIDATOR_HOTKEY = os.getenv("VALIDATOR_HOTKEY")
 
 
+# trade settings
+
+# tao*10*9 = rao
+tao_amount = 1*(10**9)
+slippage = 1.05
+validator_hotkey = "5GKH9FPPnWSUoeeTJp19wVtd84XqFW4pyK2ijV2GsFbhTrP1"
 
 TELEGRAM_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
@@ -37,6 +42,7 @@ current_block = None
 last_block_time = 0
 subnet_coldkeys = {}
 subnet_count = 128
+failed_stake_event = 0
 
 
 def decode_extrinsic(hex_string):
@@ -59,43 +65,53 @@ def get_pool_reserves(netuid):
     return alpha_reserve, tao_reserve
 
 
-async def add_stake_limit(hotkey,netuid,rao,slippage,tip=0):
-    # slippage should be provided as multiplier e.g. 1.05 = 5%
-    # {'hotkey': 'AccountId', 'netuid': 'u16', 'amount_staked': 'u64', 'limit_price': 'u64', 'allow_partial': 'bool'}
 
-    pool_alpha,pool_tao = get_pool_reserves(netuid)
-    price = pool_tao / pool_alpha
-    limit_price = price * slippage
-    call = substrate.compose_call(
-        call_module='SubtensorModule',
-        call_function='add_stake_limit',
-        call_params={
-            'hotkey': "5DXdHixxtCvoa6GHKs2Jgrdzc61882Ftx1zN2sYFQuwgL1S1",
-            'netuid': netuid,
-            'amount_staked': rao
-            'limit_price': limit_price
-            'allow_partial': False
-        }
-    )
 
-    extrinsic = substrate.create_signed_extrinsic(
-        call=call, keypair=keypair,tip=tip, era={'period': 1}
-    )
+async def add_stake_limit(hotkey, netuid, rao, slippage, tip=0):
+    try:
+        pool_alpha, pool_tao = get_pool_reserves(netuid)
+        price = pool_tao / pool_alpha
+        limit_price = price * slippage
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        call = substrate.compose_call(
+            call_module='SubtensorModule',
+            call_function='add_stake_limit',
+            call_params={
+                'hotkey': hotkey,
+                'netuid': netuid,
+                'amount_staked': rao,
+                'limit_price': int(limit_price),
+                'allow_partial': False
+            }
+        )
 
-    if receipt.is_success:
-        print(
-            f"""
-            Transaction successful:
+        extrinsic = substrate.create_signed_extrinsic(
+            call=call, keypair=keypair, tip=tip, era={'period': 1}
+        )
+
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+
+        if receipt.is_success:
+            print(f"""
+            ✅ Transaction successful:
             - Extrinsic Hash: {receipt.extrinsic_hash}
             - Block Hash: {receipt.block_hash}
-            """
-        )
-    else:
-        print(f"Transaction failed: {receipt.error_message}")
+            """)
+            return True
+        else:
+            print(f"❌ Transaction failed: {receipt.error_message}")
+            return False
 
-    return receipt
+    except Exception as e:
+        print(f"[Add Stake Error] {e}")
+        return False
+
+async def try_add_stake_limit_until_success(hotkey, netuid, rao, slippage, tip=0):
+    while failed_stake_event < 5:
+        success = await add_stake_limit(hotkey, netuid, rao, slippage, tip)
+        if success:
+            break
+        failed_stake_event += 1
 
 
 async def watch_new_blocks():
@@ -153,8 +169,8 @@ async def poll_pending_extrinsics():
                         for arg in xt.value['call']['call_args']:
                             if arg['name'] == 'new_coldkey':
                                 new_coldkey = arg['value']
-
-                        message = f"Coldkey swap scheduled:\nCaller: {caller}\nNew Coldkey: {new_coldkey}\nNetuid: {subnet_coldkeys[caller]}"
+                        netuid = subnet_coldkeys[caller]
+                        message = f"Coldkey swap scheduled:\nCaller: {caller}\nNew Coldkey: {new_coldkey}\nNetuid: {netuid}"
                         print(message)
                         try:
                             requests.post(TELEGRAM_URL, data={
@@ -164,7 +180,9 @@ async def poll_pending_extrinsics():
                         except Exception as e:
                             print(f"[Telegram Error] {e}")
                         try:
-                            add_stake_limit()
+                            asyncio.create_task(try_add_stake_limit_until_success(
+                                validator_hotkey, netuid, tao_amount, slippage, tip=2000
+                            ))
                         except Exception as e:
                             print(f"[Staking Error] {e}")
 
