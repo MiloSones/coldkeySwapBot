@@ -21,7 +21,7 @@ BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 WS_URL = os.getenv("WS_URL")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL"))
 MNEMONIC = os.getenv("MNEMONIC")
-
+TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 
 # trade settings
 
@@ -136,10 +136,16 @@ async def watch_new_blocks():
                 print(f"🧱 New block: {block_num}")
 
 
+def printTG(message):
+    try:
+        requests.post(TELEGRAM_URL, data={
+            "chat_id": TG_CHAT_ID,
+            "text": message})
+    except Exception as e:
+        print(f"[Telegram Error] {e}")
+
 
 async def poll_pending_extrinsics():
-    global whale_staked_this_block
-
     req_id = 1000
     async with websockets.connect(WS_URL) as ws:
         while True:
@@ -149,45 +155,46 @@ async def poll_pending_extrinsics():
             }))
             resp = json.loads(await ws.recv())
             pendings = resp.get('result', [])
-
             for hx in pendings:
                 if hx in seen_this_block:
                     continue
-
                 try:
                     xt = decode_extrinsic(hx)
-                except Exception:
+                except Exception as e:
+                    printTG(e)
                     continue
 
-                # Check for coldkey swap
+
                 try:
                     cm = xt.value['call']['call_module']
                     fn = xt.value['call']['call_function']
-                    if cm == "SubtensorModule" and fn == "schedule_swap_coldkey":
+                    if cm == "SubtensorModule" and fn == "schedule_schedule_swap_coldkey":
                         caller = xt.value['address']
+                        print(caller)
                         new_coldkey = None
                         for arg in xt.value['call']['call_args']:
                             if arg['name'] == 'new_coldkey':
                                 new_coldkey = arg['value']
-                        netuid = subnet_coldkeys[caller]
-                        message = f"Coldkey swap scheduled:\nCaller: {caller}\nNew Coldkey: {new_coldkey}\nNetuid: {netuid}"
-                        print(message)
                         try:
-                            requests.post(TELEGRAM_URL, data={
-                                "chat_id": GROUP_CHAT_ID,
-                                "text": message,
-                            })
+                            netuid = subnet_coldkeys[caller]
                         except Exception as e:
-                            print(f"[Telegram Error] {e}")
+                            print("Cant get subnet")
+                            netuid = -1
+
+                        message = f"TEST! Coldkey swap scheduled:\nCaller: {caller}\nNew Coldkey: {new_coldkey}\nNetuid: {netuid}"
+                        print(message)
+                        printTG(message)
                         try:
                             asyncio.create_task(try_add_stake_limit_until_success(
                                 validator_hotkey, netuid, tao_amount, slippage, tip=2000
                             ))
                         except Exception as e:
                             print(f"[Staking Error] {e}")
+                            printTG(e)
 
                 except Exception as e:
                     print(f"[Decode Error] {e}")
+                    printTG(e)
 
                 seen_this_block.add(hx)
 
