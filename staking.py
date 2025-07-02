@@ -4,6 +4,11 @@ from subtensor import keypair, substrate
 
 def add_stake(netuid):
     pool_alpha, pool_tao = get_pool_reserves(netuid)
+
+    if (pool_alpha < 10*15):
+        print("Low alpha likely not active, not staking")
+        printTG("Low alpha likely not active, not staking")
+        return False
     price = pool_tao / pool_alpha
     limit_price = price * SLIPPAGE * 10 ** 9
     message = f"Staking {STAKE_AMOUNT} at {price} on subnet {netuid}"
