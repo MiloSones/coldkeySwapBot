@@ -10,15 +10,13 @@ TG_CHAT_ID       = os.getenv("TG_CHAT_ID")
 WS_URL           = os.getenv("WS_URL")
 MNEMONIC         = os.getenv("MNEMONIC")
 
-STAKE_AMOUNT = 1*10**9
+# stake config
+STAKE_AMOUNT = 6*10**9
 TIP_AMOUNT = 1 *10**7
-SLIPPAGE = 1.05
+SLIPPAGE = 1.3
 VALIDATOR_HOTKEY = "5GKH9FPPnWSUoeeTJp19wVtd84XqFW4pyK2ijV2GsFbhTrP1"
 
 TELEGRAM_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-seen_this_block = set()
-current_block = None
 
 logging.basicConfig(
     filename='errors.log',
@@ -27,3 +25,8 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+
+#globals
+seen_this_block = set()
+current_block = None
+subnet_coldkeys = {}

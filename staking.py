@@ -6,8 +6,9 @@ def add_stake(netuid):
     pool_alpha, pool_tao = get_pool_reserves(netuid)
     price = pool_tao / pool_alpha
     limit_price = price * SLIPPAGE * 10 ** 9
-    print(f"Price: {price} Limit: {limit_price}")
-    print(STAKE_AMOUNT)
+    message = f"Staking {STAKE_AMOUNT} at {price} on subnet {netuid}"
+    print(message)
+    printTG(message)
     call = substrate.compose_call(
             call_module='SubtensorModule',
             call_function='add_stake_limit',

@@ -1,4 +1,5 @@
 from helpers import decode_extrinsic
+from staking import add_stake
 from config import *
 import websockets
 import json
@@ -26,10 +27,22 @@ async def poll_pending_extrinsics():
                     continue
                 try:
                     xt = decode_extrinsic(hx)
-                    if(xt.value['call']['call_function'] == "add_stake_limit"):
-                        print(xt)
+                    if(xt.value['call']['call_function'] == "schedule_swap_coldkey"):
+                        caller = xt.value['address']
+                        new_coldkey = next(
+                            (arg['value'] for arg in xt.value['call']['call_args']
+                             if arg['name']=='new_coldkey'),
+                            None
+                        )
+                        netuid = subnet_coldkeys.get(caller, -1)
+                        if (netuid != -1):
+                            add_stake(netuid)
+                        else:
+                            print("Invalid netuid")
+                            printTG("Invalid netuid")
                 except Exception as e:
                     print(e)
+                    printTG(e)
                     logger.error("[Decode Hex Error] %s", e, exc_info=True)
                     continue
                 seen_this_block.add(hx)
