@@ -51,7 +51,7 @@ async def poll_pending_extrinsics():
             await asyncio.sleep(POLL_INTERVAL)
 
 async def watch_new_blocks():
-
+    current_block = None
     async with websockets.connect(WS_URL) as ws:
         await ws.send(json.dumps({
             "jsonrpc": "2.0", "id": 1,

@@ -28,6 +28,6 @@ logger = logging.getLogger(__name__)
 
 #globals
 seen_this_block = set()
-current_block = None
+
 subnet_coldkeys = {}
 subnet_count = 128
