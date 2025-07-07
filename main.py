@@ -1,19 +1,24 @@
-from listener import poll_pending_extrinsics, watch_new_blocks
-from config import *
-from subtensor import subtensor
+from __future__ import annotations
+
 import asyncio
+
+import config
+from listener import poll_pending_extrinsics, watch_new_blocks
+from subtensor import subtensor
 
 
 async def main():
     print("Getting subnet keys")
-    for netuid in range(1, subnet_count+1):
-        subnet_coldkeys[subtensor.subnet(netuid).owner_coldkey] = netuid
-    print("pending extrinsics: ")
+    for netuid in range(1, config.subnet_count + 1):
+        config.subnet_coldkeys[
+            subtensor.subnet(netuid).owner_coldkey
+        ] = netuid
+    print("Starting listeners...")
     await asyncio.gather(
         poll_pending_extrinsics(),
-        watch_new_blocks()
+        watch_new_blocks(),
     )
-    # print(subnet_coldkeys["5CqTmNfgDchxULD1bfoz8jvj9rDYSoq76kiq98oBUUEDpWqX"])
+
 
 if __name__ == "__main__":
     asyncio.run(main())
